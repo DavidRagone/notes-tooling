@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$HERE/lib.sh"
+
+GCAL_ARGS=${GCAL_ARGS:-"--details=calendar,location,description,attendees --tsv"}
+
+DATE="${1:-$(today)}"
+Y="$(y "$DATE")"
+YM="$(ym "$DATE")"
+
+JFILE="$JOURNAL_DIR/$Y/$YM/$DATE.md"
+# Ensure journal exists
+"$HERE/new-journal" --date "$DATE" --no-open
+
+# Insert or refresh the Meetings block (append; keep it simple)
+{
+  echo ""
+  echo "## Meetings"
+  echo ""
+  if command -v gcalcli >/dev/null 2>&1; then
+    # gcalcli agenda today today --tsv …
+    gcalcli agenda "$DATE" "$DATE" $GCAL_ARGS \
+    | awk -F'\t' '
+      BEGIN { OFS="" }
+      {
+        start=$1; end=$2; title=$3; where=$5; desc=$6;
+        gsub(/\r/,"",desc);
+        printf "### %s (%s–%s)\n\n- Location: %s\n- Attendees: %s\n- Notes:\n\n", title, start, end, where, $7;
+      }'
+  else
+    echo "_gcalcli not found; install or set GCAL_ARGS/override this script._"
+  fi
+} >> "$JFILE"
+
+echo "Updated agenda in $JFILE"
+

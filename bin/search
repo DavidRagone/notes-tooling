@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$HERE/lib.sh"
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: search REGEX [rg-args...]"
+  exit 1
+fi
+
+rg --no-ignore-vcs --hidden \
+   --glob '!**/.git/**' --glob '!**/.index/**' \
+   --glob '!**/.tooling/**' \
+   --glob '!**/node_modules/**' \
+   "$@" "$NOTES_DIR"
+

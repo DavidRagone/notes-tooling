@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+
+DATE="$(today)"
+NAME=""
+LINK_TO_JOURNAL=0
+NO_OPEN=0
+
+usage() {
+  echo "Usage: new-meeting [NAME] [-d YYYY-MM-DD] [--link] [--no-open]"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--date) DATE="$2"; shift 2 ;;
+    --link) LINK_TO_JOURNAL=1; shift ;;
+    --no-open) NO_OPEN=1; shift ;;
+    -h|--help) usage ;;
+    *) if [[ -z "$NAME" ]]; then NAME="$1"; shift; else echo "Unknown arg: $1"; usage; fi ;;
+  esac
+done
+
+if [[ -z "$NAME" ]]; then
+  read -r -p "Meeting name: " NAME
+fi
+SLUG="$(slugify "$NAME")"
+
+Y="$(y "$DATE")"
+YM="$(ym "$DATE")"
+ensure_dir "$MEETINGS_DIR/$Y/$YM"
+FILE="$MEETINGS_DIR/$Y/$YM/${DATE}-${SLUG}.md"
+
+if [[ -f "$FILE" ]]; then
+  echo "Already exists: $FILE"
+  [[ $NO_OPEN -eq 1 ]] || open_in_editor "$FILE"
+  exit 0
+fi
+
+tpl="$TEMPLATES_DIR/meeting.md"
+if [[ -f "$tpl" ]]; then
+  render_template "$tpl" date="$DATE" title="$NAME" slug="$SLUG" > "$FILE"
+else
+  cat > "$FILE" <<EOF
+---
+date: $DATE
+type: meeting
+title: $NAME
+people: []
+project:
+tags: []
+---
+
+# $NAME
+
+**When:** $DATE  
+**Where:**  
+**Attendees:**  
+
+## Agenda
+
+-
+
+## Notes
+
+-
+
+## Decisions
+
+-
+
+## Actions
+
+- [ ] 
+
+EOF
+fi
+
+echo "Created $FILE"
+
+# Optional backlink into the journal
+if [[ $LINK_TO_JOURNAL -eq 1 ]]; then
+  JDIR="$JOURNAL_DIR/$Y/$YM"
+  JFILE="$JDIR/$DATE.md"
+  ensure_dir "$JDIR"
+  if [[ ! -f "$JFILE" ]]; then
+    # create a skeleton journal if missing
+    "$HERE/new-journal" --date "$DATE" --no-open
+  fi
+  rel="$(relpath "$FILE" "$(dirname "$JFILE")")"
+  # ensure a Meetings header exists
+  if ! grep -qE '^## Meetings' "$JFILE"; then
+    printf '\n## Meetings\n\n' >> "$JFILE"
+  fi
+  printf -- "- [%s](%s)\n" "$NAME" "$rel" >> "$JFILE"
+  echo "Linked in journal: $JFILE"
+fi
+
+[[ $NO_OPEN -eq 1 ]] || open_in_editor "$FILE"
+

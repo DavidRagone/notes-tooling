@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+
+DATE="$(today)"
+TITLE=""
+NO_OPEN=0
+
+usage() {
+  echo "Usage: new-journal [-d YYYY-MM-DD] [-t TITLE] [--no-open]"
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--date) DATE="$2"; shift 2 ;;
+    -t|--title) TITLE="$2"; shift 2 ;;
+    --no-open) NO_OPEN=1; shift ;;
+    -h|--help) usage ;;
+    *) echo "Unknown arg: $1"; usage ;;
+  esac
+done
+
+Y="$(y "$DATE")"
+YM="$(ym "$DATE")"
+ensure_dir "$JOURNAL_DIR/$Y/$YM"
+FILE="$JOURNAL_DIR/$Y/$YM/$DATE.md"
+
+if [[ -f "$FILE" ]]; then
+  [[ $NO_OPEN -eq 1 ]] || open_in_editor "$FILE"
+  exit 0
+fi
+
+tpl="$TEMPLATES_DIR/journal.md"
+if [[ -f "$tpl" ]]; then
+  render_template "$tpl" date="$DATE" title="$TITLE" > "$FILE"
+else
+  cat > "$FILE" <<EOF
+---
+date: $DATE
+type: journal
+title: ${TITLE}
+tags: []
+---
+
+# $DATE
+
+## Capture
+
+- 
+
+## Meetings
+
+EOF
+fi
+
+echo "Created $FILE"
+[[ $NO_OPEN -eq 1 ]] || open_in_editor "$FILE"
+

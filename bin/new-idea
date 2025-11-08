@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+
+TITLE="${1:-}"
+DATE="$(today)"
+NO_OPEN=0
+ADD_DATE_IN_FILENAME=0   # set --dated to force YYYY-MM-DD prefix
+PROJECT=""
+TAGS=""
+
+usage() {
+  cat <<USAGE
+Usage: new-idea [TITLE] [options]
+Options:
+  -d, --date YYYY-MM-DD     Creation date (default: today)
+      --dated               Prefix filename with YYYY-MM-DD-
+      --project KEY         Project tag to set in front-matter
+      --tags "a,b,c"        Comma-separated tags
+      --no-open             Do not open after creation
+  -h, --help
+USAGE
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -d|--date) DATE="$2"; shift 2 ;;
+    --dated) ADD_DATE_IN_FILENAME=1; shift ;;
+    --project) PROJECT="$2"; shift 2 ;;
+    --tags) TAGS="$2"; shift 2 ;;
+    --no-open) NO_OPEN=1; shift ;;
+    -h|--help) usage ;;
+    *) if [[ -z "$TITLE" ]]; then TITLE="$1"; shift; else echo "Unknown arg: $1"; usage; fi ;;
+  esac
+done
+
+if [[ -z "$TITLE" ]]; then
+  read -r -p "Idea title: " TITLE
+fi
+
+SLUG="$(slugify "$TITLE")"
+DIR="$NOTES_DIR/ideas"
+ensure_dir "$DIR"
+
+FNAME="$SLUG.md"
+[[ $ADD_DATE_IN_FILENAME -eq 1 ]] && FNAME="$DATE-$SLUG.md"
+FILE="$DIR/$FNAME"
+
+# Avoid collisions
+if [[ -e "$FILE" ]]; then
+  FILE="$DIR/$SLUG-$DATE.md"
+fi
+
+tpl="$TEMPLATES_DIR/idea.md"
+if [[ -f "$tpl" ]]; then
+  render_template "$tpl" date="$DATE" title="$TITLE" slug="$SLUG" project="$PROJECT" tags="$TAGS" > "$FILE"
+else
+  cat > "$FILE" <<EOF
+---
+date: $DATE
+type: idea
+title: $TITLE
+status: proposed        # proposed | exploring | building | shipped | dropped
+project: ${PROJECT}
+tags: [${TAGS}]
+---
+
+# $TITLE
+
+## Problem
+
+-
+
+## Proposal
+
+-
+
+## Impact / Effort
+
+- Impact:
+- Effort:
+
+## Risks / Open Questions
+
+-
+
+## Next steps
+
+- [ ]
+EOF
+fi
+
+echo "Created $FILE"
+[[ $NO_OPEN -eq 1 ]] || open_in_editor "$FILE"
+

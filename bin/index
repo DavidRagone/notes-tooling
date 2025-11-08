@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$HERE/lib.sh"
+
+ensure_dir "$INDEX_DIR"
+DB="$INDEX_DIR/embeddings.db"
+
+if ! command -v llm >/dev/null 2>&1; then
+  echo "llm CLI not found. Install: https://github.com/simonw/llm/"
+  exit 1
+fi
+
+# Embed all markdown files; store text + metadata.
+llm embed-multi notes \
+  --files "$NOTES_DIR" '**/*.md' \
+  --store -d "$DB" -m "$LLM_MODEL_EMBED"
+
+echo "Indexed Markdown to $DB"
+

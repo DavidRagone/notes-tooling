@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+
+SRC_RANGE=""
+TITLE=""
+DATE="$(today)"
+DEST=""
+TYPE="note"   # hint for front-matter
+NO_OPEN=0
+DRY_RUN=0
+
+usage() {
+  cat <<USAGE
+Usage: promote <SOURCE.md:START..END> --title "TITLE" [options]
+Options:
+  --date YYYY-MM-DD         Override date (default: today)
+  --dest <path|notes|ideas|meetings|projects/KEY>
+                            Destination directory (default: \$NOTES_DIR/notes with date/month sharding)
+  --type note|idea|meeting  Front-matter hint (default: note)
+  --no-open                 Do not open new file
+  --dry-run                 Show actions only
+  -h, --help
+USAGE
+  exit 1
+}
+
+# Defaults
+ATOMIC_DIR_DEFAULT="$NOTES_DIR/notes"   # where generic promoted notes go
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --title) TITLE="$2"; shift 2 ;;
+    --date) DATE="$2"; shift 2 ;;
+    --dest) DEST="$2"; shift 2 ;;
+    --type) TYPE="$2"; shift 2 ;;
+    --no-open) NO_OPEN=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    -h|--help) usage ;;
+    *)
+      if [[ -z "$SRC_RANGE" ]]; then SRC_RANGE="$1"; shift; else echo "Unknown arg: $1"; usage; fi ;;
+  esac
+done
+
+if [[ -z "$SRC_RANGE" || -z "$TITLE" ]]; then usage; fi
+
+# Parse SRC:START..END
+if [[ "$SRC_RANGE" =~ ^(.+):([0-9]+)\.\.([0-9]+)$ ]]; then
+  SRC="${BASH_REMATCH[1]}"
+  START="${BASH_REMATCH[2]}"
+  END="${BASH_REMATCH[3]}"
+else
+  echo "Invalid SRC:START..END syntax: $SRC_RANGE"
+  exit 1
+fi
+
+if [[ ! -f "$SRC" ]]; then
+  echo "Source file not found: $SRC"
+  exit 1
+fi
+
+SLUG="$(slugify "$TITLE")"
+Y="$(y "$DATE")"; YM="$(ym "$DATE")"
+
+# Resolve destination dir
+if [[ -z "${DEST}" || "${DEST}" == "notes" ]]; then
+  DEST_DIR="$ATOMIC_DIR_DEFAULT/$Y/$YM"
+elif [[ "${DEST}" == "ideas" ]]; then
+  DEST_DIR="$NOTES_DIR/ideas"
+elif [[ "${DEST}" == "meetings" ]]; then
+  DEST_DIR="$NOTES_DIR/meetings/$Y/$YM"
+elif [[ "${DEST}" == projects/* ]]; then
+  DEST_DIR="$NOTES_DIR/$DEST/notes"
+else
+  DEST_DIR="$DEST"
+fi
+ensure_dir "$DEST_DIR"
+
+# Filename policy
+if [[ "$DEST" == "ideas" ]]; then
+  OUT="$DEST_DIR/${SLUG}.md"
+  [[ -e "$OUT" ]] && OUT="$DEST_DIR/${SLUG}-$DATE.md"
+else
+  OUT="$DEST_DIR/${DATE}-${SLUG}.md"
+fi
+
+# Extract slice
+SLICE="$(sed -n "${START},${END}p" "$SRC")"
+
+# Build new file
+if [[ -e "$OUT" ]]; then
+  echo "Refusing to overwrite existing file: $OUT"
+  exit 1
+fi
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  echo ">>> Would create: $OUT"
+else
+  cat > "$OUT" <<EOF
+---
+date: $DATE
+type: $TYPE
+title: $TITLE
+source:
+  file: $(relpath "$SRC" "$(dirname "$OUT")")
+  lines: ${START}..${END}
+tags: []
+---
+
+# $TITLE
+
+$SLICE
+EOF
+fi
+
+# Insert link-back in source just after END line
+rel_from_src="$(relpath "$OUT" "$(dirname "$SRC")")"
+LINK_LINE="> ↗ Promoted to **$TITLE** ($rel_from_src) on $DATE"
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  echo ">>> Would insert link-back into $SRC after line $END:"
+  echo ">>> $LINK_LINE"
+else
+  tmp="$(mktemp)"
+  awk -v end="$END" -v link="$LINK_LINE" 'NR==end{print; print ""; print link; next} {print}' "$SRC" > "$tmp"
+  mv "$tmp" "$SRC"
+fi
+
+echo "Promoted lines ${START}..${END} from $(basename "$SRC") -> $OUT"
+[[ $NO_OPEN -eq 1 || $DRY_RUN -eq 1 ]] || open_in_editor "$OUT"
+
