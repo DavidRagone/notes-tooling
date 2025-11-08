@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Minimal gcalcli stub that prints one TSV row
+if [[ "$1" == "agenda" ]]; then
+  # start   end     title             loc    desc    attendees
+  echo -e "2025-11-08 10:00\t2025-11-08 10:30\tWeekly Sync\tZoom\tDiscuss roadmap\tAlice;Bob"
+  exit 0
+fi
+echo "gcalcli stub: unhandled args $*" >&2
+exit 0
+

@@ -49,3 +49,6 @@ daily:
 	@{{bin}}/agenda-to-md
 	@{{bin}}/open-journal
 
+# --- Testing ---
+test:
+    @bats -r tests

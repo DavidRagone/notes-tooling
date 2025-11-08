@@ -13,6 +13,27 @@ Keep notes as plain Markdown in a predictable tree, automate the boring parts (n
 
 ## 2) Setup
 
+### Requirements
+
+* macOS/Linux with bash
+* `rg` (ripgrep)
+* `awk`, `sed`, `iconv`, `python3`
+* Optional but recommended:
+
+  * `gcalcli` (Google Calendar → Markdown agenda)
+  * `llm` (Simon Willison’s CLI) and optionally `files-to-prompt`
+  * `just` (nice task runner)
+  * `glow` (Markdown viewer)
+  * `direnv` **OR** `mise` (for per-repo PATH/vars)
+
+Install examples (Homebrew):
+
+```bash
+brew install ripgrep just glow python3
+brew install gcalcli          # optional
+# llm: follow https://github.com/simonw/llm
+```
+
 You can use this repo in two ways.
 
 ### A) Recommended: vendored inside your private notes repo
@@ -23,11 +44,30 @@ You can use this repo in two ways.
    cd ~/notes
    git clone https://github.com/DavidRagone/notes-tooling .tooling
    ln -sfn .tooling/bin .scripts
-   echo 'export NOTES_DIR="$PWD"' >> .envrc   # if you use direnv
-   echo 'export PATH="$PWD/.scripts:$PATH"' >> .envrc
    ```
 
-   Then `direnv allow`, or export the two lines in your shell rc.
+With `direnv`:
+
+   ```bash
+   echo 'export NOTES_DIR="$PWD"' >> .envrc
+   echo 'export PATH="$PWD/.scripts:$PATH"' >> .envrc
+   direnv allow
+   ```
+
+Or with `mise`:
+
+   ```bash
+   mise add 'export NOTES_DIR="$PWD"'   # if you use mise
+   mise add 'export PATH="$PWD/.scripts:$PATH"'
+   ```
+
+Or with neither:
+
+   ```bash
+   # Assumes zsh shell; adapt for bash or others as needed
+   echo 'export NOTES_DIR="~/notes"' >> ~/.zshrc
+   echo 'export PATH="~/notes/.scripts:$PATH"' >> ~/.zshrc
+   ```
 
 2. (Optional) Pin a version:
 
@@ -44,27 +84,6 @@ You can use this repo in two ways.
 git clone https://github.com/DavidRagone/notes-tooling ~/code/notes-tooling
 echo 'export PATH="$HOME/code/notes-tooling/bin:$PATH"' >> ~/.zshrc
 echo 'export NOTES_DIR="$HOME/notes"' >> ~/.zshrc
-```
-
-### Requirements
-
-* macOS/Linux with bash
-* `rg` (ripgrep)
-* `awk`, `sed`, `iconv`, `python3`
-* Optional but recommended:
-
-  * `gcalcli` (Google Calendar → Markdown agenda)
-  * `llm` (Simon Willison’s CLI) and optionally `files-to-prompt`
-  * `just` (nice task runner)
-  * `glow` (Markdown viewer)
-  * `direnv` (for per-repo PATH/vars)
-
-Install examples (Homebrew):
-
-```bash
-brew install ripgrep just glow python3
-brew install gcalcli          # optional
-# llm: follow https://github.com/simonw/llm
 ```
 
 ---
@@ -224,7 +243,7 @@ Environment variables (all optional):
 
 ---
 
-## FAQ (quick hits)
+## FAQ
 
 * **It can’t find my notes root.** Set `export NOTES_DIR="/absolute/path/to/notes"` or place this repo at `<notes>/.tooling/`.
 * **`weekly-review` is slow or too long.** Use `--no-llm` or ensure `files-to-prompt` is installed; limit prompt size by editing the script’s fallback concat.
@@ -232,6 +251,16 @@ Environment variables (all optional):
 
 ---
 
+## Development
+
+   ```bash
+   brew install bats-core ripgrep
+   just test
+   # or
+   bats -r tests
+   ```
+
+---
 ## License
 
 MIT for the tooling code. Your notes are yours; keep them in a separate, private repository.

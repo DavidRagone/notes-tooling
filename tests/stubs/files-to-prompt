@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Concatenate files to stdout; ignore flags we don't need
+args=()
+for a in "$@"; do
+  case "$a" in
+    --markdown) : ;;
+    *) args+=("$a");;
+  esac
+done
+cat "${args[@]}" 2>/dev/null || true
+
