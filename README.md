@@ -1,25 +1,5 @@
 # notes-tooling
 
-CLI utilities and templates for a terminal-native note system (vim + tmux +
-ripgrep + llm).
-Designed so the tooling is public while your notes live in a separate, private repo.
-
-## Purpose
-
-Keep notes as plain Markdown in a predictable tree, automate the boring parts
-(new daily note, meeting notes, weekly review), and add sharp, composable
-commands for search, agenda import, task roll-ups, and LLM-powered
-summaries—without leaving the terminal.
-
-
-## Setup
-
-```sh
-brew install just # [Docs](https://github.com/casey/just)
-pip install files-to-prompt # [Docs](https://github.com/simonw/files-to-prompt)
-```
-# notes-tooling
-
 CLI utilities and templates for a terminal-native note system (vim + tmux + ripgrep + `llm`).
 Designed so the **tooling is public** while your **notes live in a separate, private repo**.
 
@@ -41,7 +21,7 @@ You can use this repo in two ways.
 
    ```bash
    cd ~/notes
-   git clone https://github.com/<you>/notes-tooling .tooling
+   git clone https://github.com/DavidRagone/notes-tooling .tooling
    ln -sfn .tooling/bin .scripts
    echo 'export NOTES_DIR="$PWD"' >> .envrc   # if you use direnv
    echo 'export PATH="$PWD/.scripts:$PATH"' >> .envrc
@@ -61,7 +41,7 @@ You can use this repo in two ways.
 ### B) Standalone: install anywhere and point `NOTES_DIR` at your notes
 
 ```bash
-git clone https://github.com/<you>/notes-tooling ~/code/notes-tooling
+git clone https://github.com/DavidRagone/notes-tooling ~/code/notes-tooling
 echo 'export PATH="$HOME/code/notes-tooling/bin:$PATH"' >> ~/.zshrc
 echo 'export NOTES_DIR="$HOME/notes"' >> ~/.zshrc
 ```
