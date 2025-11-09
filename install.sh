@@ -110,59 +110,21 @@ fi
 mkdir -p "$ROOT/journal" "$ROOT/meetings" "$ROOT/todo" "$ROOT/ideas" "$ROOT/reviews" "$ROOT/people" "$ROOT/.index"
 log "Ensured core directories exist (journal, meetings, todo, ideas, reviews, people, .index)"
 
-### ----- Step 6: write Justfile (if absent or forced) -----
+### ----- Step 6: symlink Justfile from .tooling (if absent or forced) -----
 JUSTFILE_PATH="$ROOT/Justfile"
 if [[ $WRITE_JUSTFILE -eq 1 ]]; then
-  if [[ -f "$JUSTFILE_PATH" && $FORCE -ne 1 ]]; then
+  if [[ -e "$JUSTFILE_PATH" && $FORCE -ne 1 ]]; then
     log "Justfile already exists; skipping (use --force to overwrite)"
   else
-    cat > "$JUSTFILE_PATH" <<'JUST'
-# Justfile for private notes repo — uses .scripts/ from .tooling/
-set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
-
-bin := ".scripts"
-
-new:
-	@{{bin}}/new-journal
-
-# Optional meeting name: pass if provided, omit if empty
-meet NAME='':
-	@if [ -n "{{NAME}}" ]; then {{bin}}/new-meeting "{{NAME}}" --link; else {{bin}}/new-meeting --link; fi
-
-idea TITLE='':
-	@if [ -n "{{TITLE}}" ]; then {{bin}}/new-idea "{{TITLE}}"; else {{bin}}/new-idea; fi
-
-promote SRC_RANGE TITLE:
-	@{{bin}}/promote {{SRC_RANGE}} --title "{{TITLE}}"
-
-# --- Calendar & review ---
-agenda:
-	@{{bin}}/agenda
-
-weekly:
-	@{{bin}}/weekly-review
-
-weekly-week WEEK:
-	@{{bin}}/weekly-review --week {{WEEK}}
-
-weekly-range START END:
-	@{{bin}}/weekly-review --start {{START}} --end {{END}}
-
-# --- Search / tasks / index ---
-search QUERY +ARGS:
-	@{{bin}}/search {{QUERY}} {{ARGS}}
-
-todo:
-	@{{bin}}/todo-refresh
-
-index:
-	@{{bin}}/index
-
-daily:
-	@{{bin}}/new-journal --no-open
-	@{{bin}}/agenda
-JUST
-    log "Wrote Justfile"
+    if [[ -e "$JUSTFILE_PATH" ]]; then
+      rm -f "$JUSTFILE_PATH"
+    fi
+    if [[ -f "$TOOLING_DIR/Justfile" ]]; then
+      ln -s "$TOOLING_DIR/Justfile" "$JUSTFILE_PATH"
+      log "Symlinked Justfile -> $TOOLING_DIR/Justfile"
+    else
+      err "Missing $TOOLING_DIR/Justfile; your public repo should include a Justfile"
+    fi
   fi
 else
   log "Skipping Justfile creation (--no-justfile)"
