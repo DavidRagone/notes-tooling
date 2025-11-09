@@ -125,20 +125,19 @@ bin := ".scripts"
 new:
 	@{{bin}}/new-journal
 
-open:
-	@{{bin}}/open-journal
+# Optional meeting name: pass if provided, omit if empty
+meet NAME='':
+	@if [ -n "{{NAME}}" ]; then {{bin}}/new-meeting "{{NAME}}" --link; else {{bin}}/new-meeting --link; fi
 
-meet NAME?:
-	@{{bin}}/new-meeting {{NAME | default("")}} --link
-
-idea TITLE?:
-	@{{bin}}/new-idea {{TITLE | default("")}}
+idea TITLE='':
+	@if [ -n "{{TITLE}}" ]; then {{bin}}/new-idea "{{TITLE}}"; else {{bin}}/new-idea; fi
 
 promote SRC_RANGE TITLE:
 	@{{bin}}/promote {{SRC_RANGE}} --title "{{TITLE}}"
 
+# --- Calendar & review ---
 agenda:
-	@{{bin}}/agenda-to-md
+	@{{bin}}/agenda
 
 weekly:
 	@{{bin}}/weekly-review
@@ -149,7 +148,8 @@ weekly-week WEEK:
 weekly-range START END:
 	@{{bin}}/weekly-review --start {{START}} --end {{END}}
 
-search QUERY +ARGS='':
+# --- Search / tasks / index ---
+search QUERY +ARGS:
 	@{{bin}}/search {{QUERY}} {{ARGS}}
 
 todo:
@@ -160,8 +160,7 @@ index:
 
 daily:
 	@{{bin}}/new-journal --no-open
-	@{{bin}}/agenda-to-md
-	@{{bin}}/open-journal
+	@{{bin}}/agenda
 JUST
     log "Wrote Justfile"
   fi
