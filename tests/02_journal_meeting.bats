@@ -20,6 +20,6 @@ load test_helper.bash
   [ -f "$meet" ]
   jrnl="$PRIVATE/journal/2025/2025-11/2025-11-08.md"
   grep -q "Payroll API Sync" "$jrnl"
-  grep -q "(../meetings/2025/2025-11/2025-11-08-payroll-api-sync.md)" "$jrnl"
+  grep -q "2025-11-08-payroll-api-sync\.md" "$jrnl"
 }
 

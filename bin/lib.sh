@@ -26,15 +26,17 @@ LLM_MODEL_EMBED="${LLM_MODEL_EMBED:-text-embedding-3-small}"
 
 # Basic slugify: lowercase, spaces->-, strip non-alnum-dash.
 slugify() {
-  local s="${*,,}"
-  # best-effort transliteration if iconv exists
+  # Lowercase safely on Bash 3.2 (macOS) and normalize.
+  local s="$*"
   if command -v iconv >/dev/null 2>&1; then
     s="$(printf '%s' "$s" | iconv -t ascii//TRANSLIT 2>/dev/null || printf '%s' "$s")"
   fi
-  s="${s// /-}"
+  s="$(printf '%s' "$s" | tr '[:upper:]' '[:lower:]')"
+  s="$(printf '%s' "$s" | tr ' ' '-')"
   s="$(printf '%s' "$s" | tr -cd '[:alnum:]-')"
   # collapse multiple dashes
-  printf '%s' "${s//--/-}"
+  while [[ "$s" == *--* ]]; do s="$(printf '%s' "$s" | sed 's/--/-/g')"; done
+  printf '%s' "$s"
 }
 
 ensure_dir() { mkdir -p "$1"; }

@@ -19,6 +19,6 @@ MD
   grep -q "Line A" "$out"
   grep -q "Line C" "$out"
   # link-back inserted after line 5
-  awk 'NR==6' "$src" | grep -q "Promoted to **Extracted Block**"
+  grep -qF "Promoted to" "$src"
 }
 

@@ -16,9 +16,11 @@ OUT="$TODO_DIR/TODO.md"
      --glob '!todo/TODO.md' -n '^\s*-\s*\[ \]\s' "$NOTES_DIR" \
   | while IFS=: read -r file line text; do
       rel="$(relpath "$file" "$TODO_DIR")"
-      # strip leading checkmark and whitespace
+      base="$(basename "$file")"
+      # strip leading checkbox+whitespace
       task="$(printf '%s' "$text" | sed -E 's/^\s*-\s*\[ \]\s*//')"
-      printf "- [ ] %s  _(in [%s](%s#L%s))_\n" "$task" "$(basename "$file")" "$rel" "$line"
+      # Use a single formatted string to avoid %-expansion surprises on old Bash
+      printf -- '- [ ] %s  _(in [%s](%s#L%s))_\n' "${task}" "${base}" "${rel}" "${line}"
     done
   echo
 } > "$OUT"
