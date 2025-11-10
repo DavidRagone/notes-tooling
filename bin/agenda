@@ -4,7 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/lib.sh"
 
-GCAL_ARGS=${GCAL_ARGS:-"--details=calendar,location,description,attendees --tsv"}
+GCAL_ARGS=${GCAL_ARGS:-"--details calendar --details description --details attendees --tsv"}
 
 DATE="${1:-$(today)}"
 Y="$(y "$DATE")"
@@ -35,4 +35,3 @@ JFILE="$JOURNAL_DIR/$Y/$YM/$DATE.md"
 } >> "$JFILE"
 
 echo "Updated agenda in $JFILE"
-
