@@ -14,24 +14,61 @@ JFILE="$JOURNAL_DIR/$Y/$YM/$DATE.md"
 # Ensure journal exists
 "$HERE/new-journal" --date "$DATE" --no-open
 
-# Insert or refresh the Meetings block (append; keep it simple)
-{
-  echo ""
-  echo "## Meetings"
-  echo ""
-  if command -v gcalcli >/dev/null 2>&1; then
-    # gcalcli agenda today today --tsv …
-    gcalcli agenda "$DATE" "$DATE" $GCAL_ARGS \
-    | awk -F'\t' '
-      BEGIN { OFS="" }
-      {
-        start=$1; end=$2; title=$3; where=$5; desc=$6;
-        gsub(/\r/,"",desc);
-        printf "### %s (%s–%s)\n\n- Location: %s\n- Attendees: %s\n- Notes:\n\n", title, start, end, where, $7;
-      }'
-  else
-    echo "_gcalcli not found; install or set GCAL_ARGS/override this script._"
-  fi
-} >> "$JFILE"
+# Insert or refresh the Meetings block
+# If ## Meetings already exists, just append; otherwise add the header
+if ! grep -q "^## Meetings" "$JFILE" 2>/dev/null; then
+  {
+    echo ""
+    echo "## Meetings"
+    echo ""
+  } >> "$JFILE"
+fi
+
+# Append today's meetings (with proper spacing)
+if command -v gcalcli >/dev/null 2>&1; then
+  # Convert YYYY-MM-DD to MM/DD/YYYY for gcalcli
+  # Extract year, month, day from DATE (YYYY-MM-DD format)
+  date_for_gcal="$(date -j -f "%Y-%m-%d" "$DATE" "+%m/%d/%Y" 2>/dev/null || echo "$DATE")"
+  
+  # gcalcli agenda with single date, then filter to only that date
+  gcalcli agenda "$date_for_gcal" $GCAL_ARGS \
+  | awk -F'\t' -v target_date="$DATE" '
+    BEGIN { OFS=""; first=1 }
+    NR==1 { next }  # Skip header
+    $1 == target_date {
+      start_date=$1; start_time=$2; end_date=$3; end_time=$4; 
+      title=$5; desc=$6; cal=$7;
+      
+      # Add blank line before first meeting for proper spacing
+      if (first) {
+        printf "\n\n";
+        first=0;
+      }
+      
+      # Format time display
+      if (start_time != "" && end_time != "") {
+        time_range = start_time "–" end_time
+      } else if (start_time != "") {
+        time_range = start_time
+      } else {
+        time_range = "all day"
+      }
+      
+      # Clean up description
+      gsub(/\r/,"",desc);
+      gsub(/<[^>]*>/," ",desc);  # Strip HTML tags
+      gsub(/&nbsp;/," ",desc);
+      gsub(/  +/," ",desc);  # Collapse multiple spaces
+      gsub(/^ +| +$/,"",desc);  # Trim
+      
+      printf "### %s (%s)\n\n", title, time_range;
+      if (desc != "") {
+        printf "- Description: %s\n", substr(desc, 1, 200);
+      }
+      printf "- Calendar: %s\n- Notes:\n\n", cal;
+    }' >> "$JFILE"
+else
+  echo "_gcalcli not found; install or set GCAL_ARGS/override this script._" >> "$JFILE"
+fi
 
 echo "Updated agenda in $JFILE"

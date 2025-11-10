@@ -7,6 +7,6 @@ load test_helper.bash
   [ -f "$f" ]
   grep -q "^## Meetings" "$f"
   grep -q "Weekly Sync" "$f"
-  grep -q "10:00–2025-11-08 10:30" "$f" || true  # tolerant of format, but title must exist
+  grep -q "10:00–10:30" "$f"  # Check for time range format
 }
 
