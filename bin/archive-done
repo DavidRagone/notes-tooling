@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$HERE/lib.sh"
+
+ensure_dir "$TODO_DIR"
+DONE_FILE="$TODO_DIR/done.md"
+TODAY="$(today)"
+
+# Collect completed todos from all files in todo/ except done.md
+completed_todos=()
+files_modified=()
+
+# Find all markdown files in todo/ directory except done.md
+while IFS= read -r -d '' file; do
+  # Skip done.md itself
+  if [[ "$(basename "$file")" == "done.md" ]]; then
+    continue
+  fi
+  
+  # Check if file has any completed todos (allow optional leading whitespace)
+  if grep -qE '^\s*-\s+\[x\]' "$file" 2>/dev/null; then
+    # Extract completed todos from this file
+    while IFS= read -r line; do
+      completed_todos+=("$line")
+    done < <(grep -E '^\s*-\s+\[x\]' "$file")
+    
+    # Remove completed todos from the file
+    tmp_file="$(mktemp)"
+    grep -vE '^\s*-\s+\[x\]' "$file" > "$tmp_file" || true
+    mv "$tmp_file" "$file"
+    files_modified+=("$(basename "$file")")
+  fi
+done < <(find "$TODO_DIR" -maxdepth 1 -type f -name "*.md" -print0 2>/dev/null || true)
+
+# If no completed todos found, exit early
+if [[ ${#completed_todos[@]} -eq 0 ]]; then
+  echo "No completed todos found"
+  exit 0
+fi
+
+# Ensure done.md exists with header if needed
+if [[ ! -f "$DONE_FILE" ]]; then
+  {
+    echo "# Completed Tasks"
+    echo
+  } > "$DONE_FILE"
+fi
+
+# Append date header and completed todos to done.md
+{
+  echo ""
+  echo "### $TODAY"
+  echo ""
+  for todo in "${completed_todos[@]}"; do
+    echo "$todo"
+  done
+} >> "$DONE_FILE"
+
+# Report results
+count=${#completed_todos[@]}
+if [[ $count -eq 1 ]]; then
+  echo "Archived $count completed todo to $DONE_FILE"
+else
+  echo "Archived $count completed todos to $DONE_FILE"
+fi
+
+if [[ ${#files_modified[@]} -gt 0 ]]; then
+  echo "Updated files: ${files_modified[*]}"
+fi
+

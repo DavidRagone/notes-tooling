@@ -45,6 +45,9 @@ todo:
 index:
 	@{{bin}}/index
 
+archive-done:
+  @{{bin}}/archive-done
+
 # --- Convenience bundle ---
 daily:
 	@{{bin}}/new-journal --no-open
