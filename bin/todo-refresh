@@ -21,8 +21,9 @@ trap 'rm -f "$tmp_new"' EXIT
 
 # Find unchecked boxes, print with file path for context.
 # Exclude the todo file itself and common non-note dirs.
+# Only match todos that have actual text after the brackets (exclude empty template todos like "- [ ] ")
 rg --no-ignore-vcs --hidden --glob '!**/.git/**' --glob '!**/.index/**' \
-   --glob '!**/.tooling/**' --glob '!**/todo/TODO.md' -n '^\s*-\s*\[ \]\s' "$NOTES_DIR" 2>/dev/null \
+   --glob '!**/.tooling/**' --glob '!**/todo/TODO.md' -n '^\s*-\s*\[ \]\s*\S' "$NOTES_DIR" 2>/dev/null \
 | while IFS=: read -r file line text; do
     rel="$(relpath "$file" "$TODO_DIR")"
     base="$(basename "$file")"

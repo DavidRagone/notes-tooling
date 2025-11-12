@@ -216,3 +216,40 @@ MD
   echo "$output" | grep -q "No new todos found"
 }
 
+@test "todo-refresh excludes empty todos (template placeholders)" {
+  # Create a note with both an empty todo template and a real todo
+  # This simulates the meeting template which has "- [ ] " as a placeholder
+  jf="$PRIVATE/journal/2025/2025-11/2025-11-08.md"
+  mkdir -p "$(dirname "$jf")"
+  cat >> "$jf" <<'MD'
+## Actions
+
+- [ ] 
+
+- [ ] Real task with actual text
+
+Some other content here
+MD
+
+  run_private .scripts/todo-refresh
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Added 1 new todo"
+  
+  todo="$PRIVATE/todo/TODO.md"
+  # Verify the real task is included
+  grep -q "Real task with actual text" "$todo"
+  
+  # Verify empty todos are NOT included
+  # We check that there's no todo line that would result from an empty todo
+  # An empty todo would create a line like "- [ ]   _(in [filename](path#Lline))_"
+  # But since we're excluding them, we should not see a todo entry without actual task text
+  # Let's verify by checking the count - there should be exactly 1 todo
+  todo_count=$(grep -c "Real task with actual text" "$todo")
+  [ "$todo_count" -eq 1 ]
+  
+  # Also verify that if we search for todos from this file, we only find the real one
+  # The empty todo should not have created an entry
+  file_todos=$(grep -c "2025-11-08.md" "$todo" || true)
+  [ "$file_todos" -eq 1 ]
+}
+
