@@ -24,9 +24,26 @@ extract_task_text() {
   printf '%s' "$line" | sed -E 's/^[[:space:]]*-[[:space:]]*\[[[:space:]x]\]//;s/[[:space:]]*_\(in \[.*\]\(.*\)\)_$//;s/^[[:space:]]*//;s/[[:space:]]*$//'
 }
 
+# Pre-process done.md: extract all task texts into a temporary file for fast lookup
+tmp_done_tasks="$(mktemp)"
+if [[ -f "$DONE_FILE" ]]; then
+  while IFS= read -r done_line; do
+    # Skip empty lines and headers
+    if [[ -z "$done_line" ]] || [[ "$done_line" =~ ^#+ ]] || [[ "$done_line" =~ ^### ]]; then
+      continue
+    fi
+    # Extract task text from done.md line (handles - [x] format)
+    done_task_text="$(extract_task_text "$done_line")"
+    # Only add non-empty task texts
+    if [[ -n "$done_task_text" ]]; then
+      printf '%s\n' "$done_task_text"
+    fi
+  done < "$DONE_FILE" > "$tmp_done_tasks"
+fi
+
 # Collect new todos
 tmp_new="$(mktemp)"
-trap 'rm -f "$tmp_new"' EXIT
+trap 'rm -f "$tmp_new" "$tmp_done_tasks"' EXIT
 
 # Find unchecked boxes, print with file path for context.
 # Exclude the todo file itself and common non-note dirs.
@@ -50,22 +67,10 @@ rg --no-ignore-vcs --hidden --glob '!**/.git/**' --glob '!**/.index/**' \
       already_in_todo=true
     fi
     
-    # Check if task text exists in done.md (if it exists)
+    # Check if task text exists in done.md using fast grep lookup
     already_in_done=false
-    if [[ -f "$DONE_FILE" ]]; then
-      # Extract task text from each line in done.md and compare
-      while IFS= read -r done_line; do
-        # Skip empty lines and headers
-        if [[ -z "$done_line" ]] || [[ "$done_line" =~ ^#+ ]] || [[ "$done_line" =~ ^### ]]; then
-          continue
-        fi
-        # Extract task text from done.md line (handles - [x] format)
-        done_task_text="$(extract_task_text "$done_line")"
-        if [[ "$done_task_text" == "$task_text" ]]; then
-          already_in_done=true
-          break
-        fi
-      done < "$DONE_FILE"
+    if [[ -s "$tmp_done_tasks" ]] && grep -qFx -- "$task_text" "$tmp_done_tasks" 2>/dev/null; then
+      already_in_done=true
     fi
     
     # Only add if not in TODO.md and not in done.md
