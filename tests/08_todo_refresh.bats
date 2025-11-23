@@ -253,3 +253,97 @@ MD
   [ "$file_todos" -eq 1 ]
 }
 
+@test "todo-refresh excludes todos that are already in done.md" {
+  # Create done.md with a completed task
+  done_file="$PRIVATE/todo/done.md"
+  mkdir -p "$(dirname "$done_file")"
+  cat > "$done_file" <<'MD'
+# Completed Tasks
+
+### 2025-01-01
+- [x] Already completed task
+MD
+
+  # Create a note with the same task (but unchecked)
+  jf="$PRIVATE/journal/2025/2025-11/2025-11-08.md"
+  mkdir -p "$(dirname "$jf")"
+  cat >> "$jf" <<'MD'
+- [ ] Already completed task
+- [ ] New task that should be added
+MD
+
+  run_private .scripts/todo-refresh
+  [ "$status" -eq 0 ]
+  
+  todo="$PRIVATE/todo/TODO.md"
+  # Verify the completed task is NOT added to TODO.md
+  ! grep -q "Already completed task" "$todo"
+  
+  # Verify the new task IS added to TODO.md
+  grep -q "New task that should be added" "$todo"
+  
+  # Verify the count is correct (only 1 new todo)
+  echo "$output" | grep -q "Added 1 new todo"
+}
+
+@test "todo-refresh handles done.md with multiple date sections" {
+  # Create done.md with multiple date sections
+  done_file="$PRIVATE/todo/done.md"
+  mkdir -p "$(dirname "$done_file")"
+  cat > "$done_file" <<'MD'
+# Completed Tasks
+
+### 2025-01-01
+- [x] Old completed task 1
+- [x] Old completed task 2
+
+### 2025-01-15
+- [x] Recent completed task
+MD
+
+  # Create notes with both completed and new tasks
+  jf="$PRIVATE/journal/2025/2025-11/2025-11-08.md"
+  mkdir -p "$(dirname "$jf")"
+  cat >> "$jf" <<'MD'
+- [ ] Old completed task 1
+- [ ] Recent completed task
+- [ ] Brand new task
+MD
+
+  run_private .scripts/todo-refresh
+  [ "$status" -eq 0 ]
+  
+  todo="$PRIVATE/todo/TODO.md"
+  # Verify completed tasks are NOT added
+  ! grep -q "Old completed task 1" "$todo"
+  ! grep -q "Recent completed task" "$todo"
+  
+  # Verify new task IS added
+  grep -q "Brand new task" "$todo"
+  
+  # Verify the count is correct (only 1 new todo)
+  echo "$output" | grep -q "Added 1 new todo"
+}
+
+@test "todo-refresh works correctly when done.md doesn't exist" {
+  # Ensure done.md doesn't exist
+  [ ! -f "$PRIVATE/todo/done.md" ]
+  
+  # Create a note with a task
+  jf="$PRIVATE/journal/2025/2025-11/2025-11-08.md"
+  mkdir -p "$(dirname "$jf")"
+  cat >> "$jf" <<'MD'
+- [ ] Task when done.md doesn't exist
+MD
+
+  run_private .scripts/todo-refresh
+  [ "$status" -eq 0 ]
+  
+  todo="$PRIVATE/todo/TODO.md"
+  # Verify the task is added
+  grep -q "Task when done.md doesn't exist" "$todo"
+  
+  # Verify the count is correct
+  echo "$output" | grep -q "Added 1 new todo"
+}
+

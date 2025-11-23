@@ -6,6 +6,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 ensure_dir "$TODO_DIR"
 OUT="$TODO_DIR/TODO.md"
+DONE_FILE="$TODO_DIR/done.md"
 
 # Initialize the file with header if it doesn't exist
 if [[ ! -f "$OUT" ]]; then
@@ -14,6 +15,14 @@ if [[ ! -f "$OUT" ]]; then
     echo
   } > "$OUT"
 fi
+
+# Function to extract task text from a todo line (handles both - [ ] and - [x] formats)
+# Also handles the reference format like "Task  _(in [file](path#Lline))_"
+extract_task_text() {
+  local line="$1"
+  # Remove checkbox and reference link, leaving just the task text
+  printf '%s' "$line" | sed -E 's/^[[:space:]]*-[[:space:]]*\[[[:space:]x]\]//;s/[[:space:]]*_\(in \[.*\]\(.*\)\)_$//;s/^[[:space:]]*//;s/[[:space:]]*$//'
+}
 
 # Collect new todos
 tmp_new="$(mktemp)"
@@ -32,8 +41,35 @@ rg --no-ignore-vcs --hidden --glob '!**/.git/**' --glob '!**/.index/**' \
     # Use a single formatted string to avoid %-expansion surprises on old Bash
     todo_line="$(printf -- '- [ ] %s  _(in [%s](%s#L%s))_' "${task}" "${base}" "${rel}" "${line}")"
     
-    # Check if this exact todo line already exists in the file
-    if ! grep -qFx -- "$todo_line" "$OUT" 2>/dev/null; then
+    # Extract task text for comparison
+    task_text="$(extract_task_text "$todo_line")"
+    
+    # Check if this exact todo line already exists in TODO.md
+    already_in_todo=false
+    if grep -qFx -- "$todo_line" "$OUT" 2>/dev/null; then
+      already_in_todo=true
+    fi
+    
+    # Check if task text exists in done.md (if it exists)
+    already_in_done=false
+    if [[ -f "$DONE_FILE" ]]; then
+      # Extract task text from each line in done.md and compare
+      while IFS= read -r done_line; do
+        # Skip empty lines and headers
+        if [[ -z "$done_line" ]] || [[ "$done_line" =~ ^#+ ]] || [[ "$done_line" =~ ^### ]]; then
+          continue
+        fi
+        # Extract task text from done.md line (handles - [x] format)
+        done_task_text="$(extract_task_text "$done_line")"
+        if [[ "$done_task_text" == "$task_text" ]]; then
+          already_in_done=true
+          break
+        fi
+      done < "$DONE_FILE"
+    fi
+    
+    # Only add if not in TODO.md and not in done.md
+    if [[ "$already_in_todo" == false ]] && [[ "$already_in_done" == false ]]; then
       echo "$todo_line"
     fi
   done > "$tmp_new"
